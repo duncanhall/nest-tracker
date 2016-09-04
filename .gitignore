@@ -1,4 +1,6 @@
 node_modules/
 .env
 .idea
-node_debug.log
+.tmp
+nest-tracker.zip
+npm-debug.log

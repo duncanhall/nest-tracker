@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "package": "npm install -g --prefix ./.tmp --production && node build"
   },
   "repository": {
     "type": "git",
@@ -22,5 +23,10 @@
     "dotenv": "^2.0.0",
     "request": "^2.74.0"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "adm-zip": "^0.4.7",
+    "archiver": "^1.1.0",
+    "rimraf": "^2.5.4",
+    "yargs": "^5.0.0"
+  }
 }
