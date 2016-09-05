@@ -6,7 +6,7 @@ require('dotenv').config();
 const USERNAME = process.env.USERNAME;
 const PASSWORD = process.env.PASSWORD;
 const LOGIN_URL = 'https://www.nestpensions.org.uk/pkmslogin.form';
-const MEMBER_URL = 'https://www.nestpensions.org.uk/schemeweb/NestWeb/faces/secure/common/pages/loginResolver.xhtml';
+const LOGIN_REDIRECT = 'https://www.nestpensions.org.uk/schemeweb/NestWeb/faces/secure/common/pages/loginResolver.xhtml';
 const FUND_URL = 'https://www.nestpensions.org.uk/schemeweb/NestWeb/faces/secure/FE/pages/fundValueLanding.xhtml';
 
 let Promise = require("bluebird");
@@ -18,44 +18,47 @@ let nestRequest = request.defaults({simple:false, jar:jar});
 Promise.promisifyAll(nestRequest);
 
 function login() {
-    console.log('Logging in...');
-    let formData = {};
-    formData.username = USERNAME;
-    formData.password = PASSWORD;
-    formData['login-form-type'] = 'pwd';
-    return nestRequest.postAsync({uri:LOGIN_URL, form:formData});
+    let formData = {
+        username: USERNAME,
+        password: PASSWORD,
+        ['login-form-type']: 'pwd'
+    };
+    return nestRequest.postAsync({uri:LOGIN_URL, form:formData})
+}
+
+function validateLogin(loginResponse) {
+    if (loginResponse.headers.location !== LOGIN_REDIRECT) throw new Error('Login failed');
 }
 
 function getMemberPage() {
-    console.log('Getting member page...');
-    return nestRequest.getAsync({url:MEMBER_URL});
+    return nestRequest.getAsync(LOGIN_REDIRECT);
 }
 
 function getFundPage() {
-    console.log('Getting fund page...');
-    return nestRequest.getAsync({url:FUND_URL});
-} 
+    return nestRequest.getAsync(FUND_URL);
+}
 
-function showResult(fundDom) {
-    console.log('Reading Dom...');
-    let $ = cheerio.load(fundDom.body);
-    let fundValueHTML = $('#fundValueLanding .content').text();
-    let matchedValue = /\£([0-9\.]+)\s/.exec(fundValueHTML);
-    let fundValue = matchedValue[1];
-    console.log('Your fund value is £' + fundValue);
-    return fundValue;
+function showResult(fundPage) {
+    try {
+        let $ = cheerio.load(fundPage.body);
+        let fundValueHTML = $('#fundValueLanding .content').text();
+        let matchedValue = /\£([0-9\.]+)\s/.exec(fundValueHTML);
+        return matchedValue[1];
+    } catch (error) {
+        throw new Error(`Could not find fund value in ${fundPage.req.path}`);
+    }
 }
 
 function lambdaTrigger(event, context, callback) {
-    if (USERNAME === undefined || PASSWORD === undefined) {
-        return callback('Username or password is not defined. Check your .env file');
-    }
+    let exitWithResult = value => callback(null, value);
+    let exitWithError = error => callback(error);
     login()
+        .then(validateLogin)
         .then(getMemberPage)
         .then(getFundPage)
         .then(showResult)
-        .then(x => callback(null, 'Value retrieved sucessfully'))
-        .catch(console.error.bind(console));
+        .then(exitWithResult)
+        .catch(exitWithError);
 }
 
 module.exports = {
