@@ -18,10 +18,12 @@
   },
   "homepage": "https://github.com/duncanhall/nest-tracker#readme",
   "dependencies": {
+    "aws-sdk": "^2.5.5",
     "bluebird": "^3.4.6",
     "cheerio": "^0.22.0",
     "dotenv": "^2.0.0",
-    "request": "^2.74.0"
+    "request": "^2.74.0",
+    "uuid": "^2.0.2"
   },
   "devDependencies": {
     "adm-zip": "^0.4.7",

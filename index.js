@@ -13,9 +13,13 @@ const FUND_URL = 'https://www.nestpensions.org.uk/schemeweb/NestWeb/faces/secure
 let Promise = require("bluebird");
 let request = require("request");
 let cheerio = require('cheerio');
+let uuid = require('uuid');
+let AWS = require('aws-sdk');
 
 // Use the same cookie jar for all requests to persist authentication
 let nestRequest = Promise.promisifyAll(request.defaults({jar:request.jar()}));
+
+let docClient = Promise.promisifyAll(new AWS.DynamoDB.DocumentClient({region:'eu-west-1'}));
 
 /**
  * Logs in to NEST, storing the authorization cookie
@@ -60,10 +64,23 @@ function getFundValue(fundPageResponse) {
     let $ = cheerio.load(fundPageResponse.body);
     let fundValueHTML = $('#fundValueLanding .content').text();
     let matchedValue = /\£([0-9\.]+)\s/.exec(fundValueHTML);
-    return matchedValue[1];
+    return +matchedValue[1];
   } catch (error) {
     throw new Error(`Could not find fund value in ${fundPageResponse.req.path}`);
   }
+}
+
+/**
+ * Create and insert value entry
+ */
+function createTableEntry(value) {
+  let id = uuid.v1();
+  let timestamp = +new Date;
+  var params = {
+    Item: {id, timestamp, value},
+    TableName: 'NestData'
+  };
+  return docClient.putAsync(params);
 }
 
 /**
@@ -81,6 +98,7 @@ function lambdaTrigger(event, context, callback) {
     .then(resolveLogin)
     .then(getFundPage)
     .then(getFundValue)
+    .then(createTableEntry)
     .then(exitWithResult)
     .catch(exitWithError);
 }
