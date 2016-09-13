@@ -1,29 +1,25 @@
 'use strict';
 
-// Ensure our credentials are loaded at startup
 require('dotenv').config();
 const USERNAME = process.env.USERNAME;
 const PASSWORD = process.env.PASSWORD;
 const AWS_REGION = process.env.AWS_REGION;
-
 const LAMBDA_ENV_DETECT = 'AWS_LAMBDA_FUNCTION_VERSION';
 const LOGIN_URL = 'https://www.nestpensions.org.uk/pkmslogin.form';
 const LOGIN_REDIRECT = 'https://www.nestpensions.org.uk/schemeweb/NestWeb/faces/secure/common/pages/loginResolver.xhtml';
 const FUND_URL = 'https://www.nestpensions.org.uk/schemeweb/NestWeb/faces/secure/FE/pages/fundValueLanding.xhtml';
+const IS_LAMBDA = process.env.hasOwnProperty(LAMBDA_ENV_DETECT);
 
 let Promise = require("bluebird");
 let request = require("request");
 let cheerio = require('cheerio');
 let uuid = require('uuid');
 let AWS = require('aws-sdk');
-
-// Use the same cookie jar for all requests to persist authentication
-let nestRequest = Promise.promisifyAll(request.defaults({jar:request.jar()}));
-
-let docClient = Promise.promisifyAll(new AWS.DynamoDB.DocumentClient({region:AWS_REGION}));
+let nest = Promise.promisifyAll(request.defaults({jar:request.jar()}));
+let dynamo = Promise.promisifyAll(new AWS.DynamoDB.DocumentClient({region:AWS_REGION}));
 
 /**
- * Logs in to NEST, storing the authorization cookie
+ * Log in to NEST, storing the authorization cookie
  */
 function login() {
   let formData = {
@@ -31,11 +27,11 @@ function login() {
     password: PASSWORD,
     ['login-form-type']: 'pwd'
   };
-  return nestRequest.postAsync({uri:LOGIN_URL, form:formData})
+  return nest.postAsync({uri:LOGIN_URL, form:formData})
 }
 
 /**
- * Validates a NEST login response based on the headers
+ * Validate a NEST login response based on the headers
  * @param loginResponse {object} The HTTP response from a login request
  */
 function validateLogin(loginResponse) {
@@ -43,21 +39,21 @@ function validateLogin(loginResponse) {
 }
 
 /**
- * Follows the NEST login redirect
+ * Follow the NEST login redirect
  */
 function resolveLogin() {
-  return nestRequest.getAsync(LOGIN_REDIRECT);
+  return nest.getAsync(LOGIN_REDIRECT);
 }
 
 /**
- * Loads the NEST fund page
+ * Load the NEST fund page
  */
 function getFundPage() {
-  return nestRequest.getAsync(FUND_URL);
+  return nest.getAsync(FUND_URL);
 }
 
 /**
- * Finds the fund value in the fund page DOM
+ * Find the fund value in the fund page DOM
  * @param fundPageResponse {object} The HTTP response from the fund page
  */
 function getFundValue(fundPageResponse) {
@@ -75,13 +71,15 @@ function getFundValue(fundPageResponse) {
  * Create and insert value entry
  */
 function createTableEntry(value) {
+  if (!IS_LAMBDA) return  value;
+
   let id = uuid.v1();
   let timestamp = +new Date;
   var params = {
     Item: {id, timestamp, value},
     TableName: 'NestData'
   };
-  return docClient.putAsync(params);
+  return dynamo.putAsync(params);
 }
 
 /**
@@ -92,22 +90,20 @@ function createTableEntry(value) {
  * @param callback {object} The Lambda callback
  */
 function lambdaTrigger(event, context, callback) {
-  let exitWithResult = value => callback(null, value);
-  let exitWithError = error => callback(error);
   login()
     .then(validateLogin)
     .then(resolveLogin)
     .then(getFundPage)
     .then(getFundValue)
     .then(createTableEntry)
-    .then(exitWithResult)
-    .catch(exitWithError);
+    .then(value => callback(null, value))
+    .catch(error => callback(error));
 }
 
 /**
  * If we're running outside of Lambda, invoke the handler
  */
-if (!process.env.hasOwnProperty(LAMBDA_ENV_DETECT)) {
+if (!IS_LAMBDA) {
   console.log('Local environment detected, running lambda...');
   lambdaTrigger(null, null, console.log.bind(console));
 }
