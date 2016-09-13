@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "package": "npm install -g --prefix ./.tmp --production && node build"
+    "test": "node index.js",
+    "lambda:build": "npm install -g --prefix ./.tmp --production && node build.js"
   },
   "repository": {
     "type": "git",

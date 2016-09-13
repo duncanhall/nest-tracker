@@ -1,9 +1,9 @@
 'use strict';
 
 let argv = require('yargs').argv;
-if (!argv.u)  console.error('Username not set.');   return;
-if (!argv.p)  console.error('Password not set.');   return;
-if (!argv.r)  console.error('AWS region not set.'); return;
+if (!argv.u) exitWithError('Username not set.');
+if (!argv.p) exitWithError('Password not set.');
+if (!argv.r) exitWithError('AWS region not set.');
 
 const rimraf = require('rimraf');
 const fs = require('fs');
@@ -11,6 +11,11 @@ const archiver = require('archiver');
 const output = fs.createWriteStream('./nest-tracker.zip');
 const archive = archiver('zip');
 const ENV_CONTENTS = `USERNAME=${argv.u}\nPASSWORD=${argv.p}\nAWS_REGION=${argv.r}`;
+
+function exitWithError(error) {
+  console.error(error);
+  process.exit(1);
+}
 
 function cleanupTempFiles() {
   rimraf('./.tmp', function tmpRemoved() {
