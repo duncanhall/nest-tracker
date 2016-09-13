@@ -3,5 +3,5 @@
 ### Build
 
 ```
-npm run package -- -u {NEST_USERNAME} -p {NEST_PASSWORD} -r {AWS_REGION}
+npm run lambda:build -- -u {NEST_USERNAME} -p {NEST_PASSWORD} -r {AWS_REGION}
 ```
