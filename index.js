@@ -4,6 +4,7 @@
 require('dotenv').config();
 const USERNAME = process.env.USERNAME;
 const PASSWORD = process.env.PASSWORD;
+const AWS_REGION = process.env.AWS_REGION;
 
 const LAMBDA_ENV_DETECT = 'AWS_LAMBDA_FUNCTION_VERSION';
 const LOGIN_URL = 'https://www.nestpensions.org.uk/pkmslogin.form';
@@ -19,7 +20,7 @@ let AWS = require('aws-sdk');
 // Use the same cookie jar for all requests to persist authentication
 let nestRequest = Promise.promisifyAll(request.defaults({jar:request.jar()}));
 
-let docClient = Promise.promisifyAll(new AWS.DynamoDB.DocumentClient({region:'eu-west-1'}));
+let docClient = Promise.promisifyAll(new AWS.DynamoDB.DocumentClient({region:AWS_REGION}));
 
 /**
  * Logs in to NEST, storing the authorization cookie
